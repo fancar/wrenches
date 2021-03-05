@@ -22,15 +22,16 @@ func Execute(v string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "template-app",
-	Short: "application template",
-	Long: `this is a template for golang application
-	> documentation & support: !!! left empty !!! 
-	> source & copyright information: !!! left empty !!!  `,
-	RunE: run,
+	Use:   "wrenches",
+	Short: "wrenches iot-server tools",
+	Long:  `this are tools for iot-netserver based on chirpstack project`,
+	// > documentation & support: !!! left empty !!!
+	// > source & copyright information: !!! left empty !!!  `,
+	// RunE: run,
 }
 
 func init() {
+
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to configuration file (optional)")
@@ -38,15 +39,24 @@ func init() {
 
 	viper.BindPFlag("general.log_level", rootCmd.PersistentFlags().Lookup("log-level"))
 
-	viper.SetDefault("prometheus.bind", "0.0.0.0:9001")
+	viper.SetDefault("redis.servers", []string{"localhost:6379"})
+
+	viper.SetDefault("ns.postgre.dsn", "postgres://localhost/chirpstack_ns?sslmode=disable")
+	viper.SetDefault("ns.postgre.max_idle_connections", 2)
+	viper.SetDefault("ns.postgre.max_open_connections", 0)
+
+	viper.SetDefault("as.postgre.dsn", "postgres://localhost/chirpstack_as?sslmode=disable")
+	viper.SetDefault("as.postgre.max_idle_connections", 2)
+	viper.SetDefault("as.postgre.max_open_connections", 0)
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(getSessionsCmd)
+
 }
 
 func initConfig() {
 	config.Version = version
-
 	if cfgFile != "" {
 		b, err := ioutil.ReadFile(cfgFile)
 		if err != nil {
@@ -59,8 +69,8 @@ func initConfig() {
 	} else {
 		viper.SetConfigName("config")
 		viper.AddConfigPath(".")
-		viper.AddConfigPath("$HOME/.config/template-app")
-		viper.AddConfigPath("/etc/template-app")
+		viper.AddConfigPath("$HOME/.config/wrenches")
+		viper.AddConfigPath("/etc/wrenches")
 		if err := viper.ReadInConfig(); err != nil {
 			switch err.(type) {
 			case viper.ConfigFileNotFoundError:

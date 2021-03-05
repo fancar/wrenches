@@ -2,24 +2,23 @@ package cmd
 
 import (
 	"context"
-	"net/http"
+	// "net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	// "github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/fancar/wrenches/internal/config"
+	// "github.com/fancar/wrenches/internal/config"
 )
 
 func run(cnd *cobra.Command, args []string) error {
 	tasks := []func(context.Context, *sync.WaitGroup) error{
 		setLogLevel,
 		printStartMessage,
-		setupPrometheus,
+		// setupPrometheus,
 		// startSomeRoutine,
 	}
 
@@ -51,36 +50,31 @@ func run(cnd *cobra.Command, args []string) error {
 	return nil
 }
 
-func setLogLevel(ctx context.Context, wg *sync.WaitGroup) error {
-	log.SetLevel(log.Level(uint8(config.C.General.LogLevel)))
-	return nil
-}
-
 func printStartMessage(ctx context.Context, wg *sync.WaitGroup) error {
 	log.WithFields(log.Fields{
 		"version": version,
-		"docs":    "https://www.some_docs.io/",
-	}).Info("starting some application")
+		// "docs":    "https://www. ... .su/",
+	}).Info("starting iot-tools ...")
 	return nil
 }
 
-func setupPrometheus(ctx context.Context, wg *sync.WaitGroup) error {
-	log.WithFields(log.Fields{
-		"bind": config.C.Prometheus.Bind,
-	}).Info("starting Prometheus endpoint server")
+// func setupPrometheus(ctx context.Context, wg *sync.WaitGroup) error {
+// 	log.WithFields(log.Fields{
+// 		"bind": config.C.Prometheus.Bind,
+// 	}).Info("starting Prometheus endpoint server")
 
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
+// 	mux := http.NewServeMux()
+// 	mux.Handle("/metrics", promhttp.Handler())
 
-	server := http.Server{
-		Handler: mux,
-		Addr:    config.C.Prometheus.Bind,
-	}
+// 	server := http.Server{
+// 		Handler: mux,
+// 		Addr:    config.C.Prometheus.Bind,
+// 	}
 
-	go func() {
-		err := server.ListenAndServe()
-		log.WithError(err).Error("prometheus endpoint server error")
-	}()
+// 	go func() {
+// 		err := server.ListenAndServe()
+// 		log.WithError(err).Error("prometheus endpoint server error")
+// 	}()
 
-	return nil
-}
+// 	return nil
+// }
