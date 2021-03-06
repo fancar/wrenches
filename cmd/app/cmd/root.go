@@ -53,6 +53,8 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(getSessionsCmd)
 
+	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "csv", "output format json/csv. Default: csv")
+
 }
 
 func initConfig() {

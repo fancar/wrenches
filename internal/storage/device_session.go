@@ -4,6 +4,7 @@ package storage
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/lorawan"
@@ -88,6 +89,10 @@ type DeviceSession struct {
 	NFCntDown      uint32
 	AFCntDown      uint32
 	ConfFCnt       uint32
+
+	// App Session Key
+	AppSKey  lorawan.AES128Key
+	KEKLabel string
 
 	// Only used by ABP activation
 	SkipFCntValidation bool
@@ -176,25 +181,51 @@ type DeviceSession struct {
 	IsDisabled bool
 }
 
+// DeviceSessionCSV defines a device-session in comma sep. format.
+type DeviceSessionCSV struct {
+	MACVersion string
+	DevEUI     string
+	DevAddr    string
+	JoinEUI    string
+
+	TXPowerIndex int
+
+	FCntUp      uint32
+	NFCntDown   uint32
+	AFCntDown   uint32
+	ConfFCnt    uint32
+	FNwkSIntKey string //lorawan.AES128Key
+	SNwkSIntKey string //lorawan.AES128Key
+	NwkSEncKey  string //lorawan.AES128Key
+
+	AppSKey  string // got from KeyEnvelope OR SQL (application-server db)
+	KEKLabel string
+
+	PingSlotNb            int
+	EnabledUplinkChannels []int
+
+	IsDisabled bool
+}
+
 // GetDeviceSession returns the device-session for the given DevEUI.
-func GetDeviceSession(ctx context.Context, devEUI lorawan.EUI64) (DeviceSession, error) {
+func GetDeviceSession(ctx context.Context, devEUI lorawan.EUI64) (*DeviceSession, error) {
 	key := fmt.Sprintf(deviceSessionKeyTempl, devEUI)
 	var dsPB DeviceSessionPB
 
 	val, err := RedisClient().Get(key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return DeviceSession{}, ErrDoesNotExist
+			return &DeviceSession{}, ErrDoesNotExist
 		}
-		return DeviceSession{}, fmt.Errorf("get error %w", err)
+		return &DeviceSession{}, fmt.Errorf("get error %w", err)
 	}
 
 	err = proto.Unmarshal(val, &dsPB)
 	if err != nil {
-		return DeviceSession{}, fmt.Errorf("unmarshal protobuf error %w", err)
+		return &DeviceSession{}, fmt.Errorf("unmarshal protobuf error %w", err)
 	}
 
-	return deviceSessionFromPB(dsPB), nil
+	return deviceSessionFromPB(&dsPB), nil
 }
 
 func deviceSessionToPB(d DeviceSession) DeviceSessionPB {
@@ -305,7 +336,11 @@ func deviceSessionToPB(d DeviceSession) DeviceSessionPB {
 	return out
 }
 
-func deviceSessionFromPB(d DeviceSessionPB) DeviceSession {
+// func deviceSessionCSVFromPB(d DeviceSessionPB) DeviceSessionCSV {
+
+// }
+
+func deviceSessionFromPB(d *DeviceSessionPB) *DeviceSession {
 	dpID, _ := uuid.FromString(d.DeviceProfileId)
 	rpID, _ := uuid.FromString(d.RoutingProfileId)
 	spID, _ := uuid.FromString(d.ServiceProfileId)
@@ -410,8 +445,8 @@ func deviceSessionFromPB(d DeviceSessionPB) DeviceSession {
 		if err := proto.Unmarshal(d.PendingRejoinDeviceSession, &dsPB); err != nil {
 			log.WithField("dev_eui", out.DevEUI).WithError(err).Error("decode pending rejoin device-session error")
 		} else {
-			ds := deviceSessionFromPB(dsPB)
-			out.PendingRejoinDeviceSession = &ds
+			// ds :=
+			out.PendingRejoinDeviceSession = deviceSessionFromPB(&dsPB)
 		}
 	}
 
@@ -419,5 +454,44 @@ func deviceSessionFromPB(d DeviceSessionPB) DeviceSession {
 		out.MACCommandErrorCount[lorawan.CID(k)] = int(v)
 	}
 
-	return out
+	return &out
+}
+
+// CSVfromDeviceSession converter
+func CSVfromDeviceSession(d *DeviceSession) *DeviceSessionCSV {
+	result := DeviceSessionCSV{
+		MACVersion: d.MACVersion,
+
+		DevEUI:  hex.EncodeToString(d.DevEUI[:]),
+		DevAddr: hex.EncodeToString(d.DevAddr[:]),
+		JoinEUI: hex.EncodeToString(d.JoinEUI[:]),
+
+		TXPowerIndex: d.TXPowerIndex,
+
+		FCntUp:      d.FCntUp,
+		NFCntDown:   d.NFCntDown,
+		AFCntDown:   d.AFCntDown,
+		ConfFCnt:    d.ConfFCnt,
+		FNwkSIntKey: hex.EncodeToString(d.FNwkSIntKey[:]),
+		SNwkSIntKey: hex.EncodeToString(d.FNwkSIntKey[:]),
+		NwkSEncKey:  hex.EncodeToString(d.FNwkSIntKey[:]),
+
+		AppSKey:  hex.EncodeToString(d.AppSKey[:]),
+		KEKLabel: d.KEKLabel,
+
+		PingSlotNb:            d.PingSlotNb,
+		EnabledUplinkChannels: d.EnabledUplinkChannels,
+		IsDisabled:            d.IsDisabled,
+	}
+	return &result
+}
+
+// ConvertDeviceSessionsToCSV converter
+func ConvertDeviceSessionsToCSV(input []DeviceSession) ([]DeviceSessionCSV, error) {
+	var result []DeviceSessionCSV
+	for _, s := range input {
+		l := CSVfromDeviceSession(&s)
+		result = append(result, *l)
+	}
+	return result, nil
 }

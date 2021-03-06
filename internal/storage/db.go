@@ -15,8 +15,11 @@ import (
 // redisClient holds the Redis client.
 var redisClient redis.UniversalClient
 
-// db holds the PostgreSQL connection pool.
-var db *DBLogger
+// db holds the network-server's PostgreSQL connection pool.
+var nsDB *DBLogger
+
+// db holds the application-server's PostgreSQL connection pool.
+var asDB *DBLogger
 
 // DBLogger is a DB wrapper which logs the executed sql queries and their
 // duration.
@@ -107,9 +110,14 @@ func logQuery(query string, duration time.Duration, args ...interface{}) {
 	}).Debug("sql query executed")
 }
 
-// DB returns the PostgreSQL database object.
-func DB() *DBLogger {
-	return db
+// NetServer returns the network-server's PostgreSQL database object.
+func NetServer() *DBLogger {
+	return nsDB
+}
+
+// AppServer returns the application-server's PostgreSQL database object.
+func AppServer() *DBLogger {
+	return asDB
 }
 
 // RedisClient returns the Redis client.

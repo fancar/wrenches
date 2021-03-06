@@ -18,6 +18,7 @@ import (
 
 	"github.com/brocaar/lorawan"
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/fancar/wrenches/internal/config"
 	"github.com/fancar/wrenches/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -31,13 +32,17 @@ var getSessionsCmd = &cobra.Command{
 	Run: getSessions,
 }
 
+var gsOutputFormat string // default - csv
+
 type getSessionCtx struct {
 	ctx            context.Context
-	Devices        []lorawan.EUI64 // array of devEui strings
+	Devices        []lorawan.EUI64
 	DeviceSessions []storage.DeviceSession
+	Data           []byte
 }
 
 func parseArgsToCtx(args []string) (*getSessionCtx, error) {
+
 	if len(args) == 0 {
 		return &getSessionCtx{}, fmt.Errorf("please specify at least one devEui as argument")
 	}
@@ -68,18 +73,21 @@ func parseArgsToCtx(args []string) (*getSessionCtx, error) {
 }
 
 func getSessions(cmd *cobra.Command, args []string) {
-	initLogger()
+	setLogLevel()
+
 	ctx, err := parseArgsToCtx(args)
 	if err != nil {
 		log.WithError(err).Error("can't parse arguments")
 		return
 	}
-	setupStorage()
+
 	tasks := []func(*getSessionCtx) error{
-		// setLogLevel,
+		checkOutputFormatGS,
+		setupStorageGS,
 		printGetSessionsStartMessage,
 		getDeviceSessionsfromRedis,
-		writeCSV,
+		marshalData,
+		writeDataToFile,
 	}
 
 	for _, t := range tasks {
@@ -106,6 +114,26 @@ func getSessions(cmd *cobra.Command, args []string) {
 	// }
 }
 
+func checkOutputFormatGS(ctx *getSessionCtx) error {
+	gsOutputFormat = strings.ToLower(gsOutputFormat)
+	switch gsOutputFormat {
+	case "csv":
+		log.Debug("the result will be stored in csv format")
+	case "json":
+		log.Debug("the result will be stored in json format")
+	default:
+		return fmt.Errorf("unknown format: '%s'. Please use json/csv", gsOutputFormat)
+	}
+	return nil
+}
+
+func setupStorageGS(ctx *getSessionCtx) error {
+	if err := storage.Setup(config.C); err != nil {
+		return fmt.Errorf("setup storage error %w", err)
+	}
+	return nil
+}
+
 func printGetSessionsStartMessage(ctx *getSessionCtx) error {
 	log.WithFields(log.Fields{
 		"device cnt": len(ctx.Devices),
@@ -119,68 +147,96 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 	for _, devEUI := range ctx.Devices {
 		s, err := storage.GetDeviceSession(ctx.ctx, devEUI)
 		if err != nil {
-			// TODO: in case not found, remove the DevEUI from the list
 			log.WithFields(log.Fields{
 				"dev_eui": devEUI,
 				// "ctx_id":   ctx.Value(logging.ContextIDKey),
 			}).Error("get device-session error: %s", err)
 		} else {
-			items = append(items, s)
+
+			err := getAppSKey(ctx.ctx, devEUI, s)
+			if err != nil {
+				return err
+			}
+
+			// s.AppSKey = key
+			items = append(items, *s)
 		}
-
-		// It is possible that the "main" device-session maps to a different
-		// devAddr as the PendingRejoinDeviceSession is set (using the devAddr
-		// that is used for the lookup).
-		// if s.DevAddr == devAddr {
-		// 	items = append(items, s)
-		// }
-
-		// When a pending rejoin device-session context is set and it has
-		// the given devAddr, add it to the items list.
-		// if s.PendingRejoinDeviceSession != nil && s.PendingRejoinDeviceSession.DevAddr == devAddr {
-		// 	items = append(items, *s.PendingRejoinDeviceSession)
-		// }
 	}
 
 	ctx.DeviceSessions = items
-
-	if len(items) > 0 {
-		empJSON, err := json.MarshalIndent(items, "", "  ")
-		if err != nil {
-			log.WithError(err).Error("can't MarshalIndent")
-		}
-		fmt.Printf("DeviceSession[0] %s\n", string(empJSON))
-
-		// fmt.Println(items[0].PendingRejoinDeviceSession)
-	}
-
 	log.WithField("items_len", len(items)).Debug("Got sessions from Redis!")
 
 	return nil
 
 }
 
-func writeCSV(ctx *getSessionCtx) error {
-
-	// w := csv.NewWriter(os.Stdout)
-	// headers := my_struct.GetHeaders()
-
-	// proc := storage.ProcessCSV(data)
-
-	buff := &bytes.Buffer{}
-	writer := struct2csv.NewWriter(buff)
-	err := writer.WriteStructs(ctx.DeviceSessions)
-	if err != nil {
-		return fmt.Errorf("can't prepare csv: %w", err)
+// adds AppSKey from envelope or from SQL
+func getAppSKey(ctx context.Context, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
+	lf := log.Fields{
+		"devEUI": devEUI,
 	}
 
-	fname := fmt.Sprintf("sessions_%s.csv", time.Now().Format("1504-02012006"))
-	err = ioutil.WriteFile(fname, buff.Bytes(), 0644)
-	if err != nil {
-		return fmt.Errorf("can't write csv file: %w", err)
+	if d.AppSKeyEvelope != nil {
+		d.KEKLabel = d.AppSKeyEvelope.KEKLabel
+		copy(d.AppSKey[:], d.AppSKeyEvelope.AESKey[:])
+		log.WithFields(lf).Info("Got addAppSKey from Session (AppSKeyEvelope)")
+		return nil
 	}
 
-	fmt.Println(buff)
+	dbdata, err := storage.GetDevice(ctx, storage.AppServer(), devEUI)
+	if err != nil {
+		return fmt.Errorf("devEUI:%s can't get AppSkey from DB: %w", devEUI, err)
+	}
 
+	if bytes.Equal(dbdata.AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
+		return fmt.Errorf("devEUI:%s zero AppSKey recieved from Application Server", devEUI)
+	}
+	d.AppSKey = dbdata.AppSKey
+	log.WithFields(lf).Debug("Got AppSKey from Application Server")
+	// return dbdata.AppSKey, nil
+	return nil
+}
+
+func marshalData(ctx *getSessionCtx) error {
+	switch gsOutputFormat {
+	case "json":
+		empJSON, err := json.MarshalIndent(ctx.DeviceSessions, "", "  ")
+		if err != nil {
+			log.WithError(err).Error("[marshalData] can't MarshalIndent")
+		}
+		ctx.Data = empJSON
+		// fmt.Printf("DeviceSession[0] %s\n", string(empJSON))
+
+	case "csv":
+		buff := &bytes.Buffer{}
+		writer := struct2csv.NewWriter(buff)
+		csv, err := storage.ConvertDeviceSessionsToCSV(ctx.DeviceSessions)
+
+		if err != nil {
+			return fmt.Errorf("[marshalData] can't convert data to csv: %w", err)
+		}
+
+		err = writer.WriteStructs(csv)
+		if err != nil {
+			return fmt.Errorf("[marshalData] can't prepare csv: %w", err)
+		}
+		ctx.Data = buff.Bytes()
+	default:
+		return fmt.Errorf("[marshalData] unknown format selected: %s", gsOutputFormat)
+	}
+
+	return nil
+
+	// fmt.Println(items[0].PendingRejoinDeviceSession)
+}
+
+func writeDataToFile(ctx *getSessionCtx) error {
+
+	fname := fmt.Sprintf("sessions_%s.%s", time.Now().Format("1504-02012006"), gsOutputFormat)
+	err := ioutil.WriteFile(fname, ctx.Data, 0644)
+	if err != nil {
+		return fmt.Errorf("can't write to file: %w", err)
+	}
+	log.WithField("filename", fname).Info("Done! Results have been saved to the file")
 	return nil
 }

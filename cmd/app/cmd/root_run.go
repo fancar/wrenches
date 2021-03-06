@@ -15,8 +15,9 @@ import (
 )
 
 func run(cnd *cobra.Command, args []string) error {
+	setLogLevel()
 	tasks := []func(context.Context, *sync.WaitGroup) error{
-		setLogLevel,
+		// setLogLevel,
 		printStartMessage,
 		// setupPrometheus,
 		// startSomeRoutine,

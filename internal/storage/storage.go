@@ -71,6 +71,7 @@ func Setup(c config.Config) error {
 			break
 		}
 	}
+	nsDB = &DBLogger{d}
 
 	log.Info("storage: connecting to AppServer-PostgreSQL ... ")
 	d, err = sqlx.Open("postgres", c.ApplicationServer.PostgreSQL.DSN)
@@ -87,6 +88,7 @@ func Setup(c config.Config) error {
 			break
 		}
 	}
+	asDB = &DBLogger{d}
 
 	return nil
 }
