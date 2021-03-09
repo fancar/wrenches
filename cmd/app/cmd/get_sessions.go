@@ -38,6 +38,7 @@ type getSessionCtx struct {
 	ctx            context.Context
 	Devices        []lorawan.EUI64
 	DeviceSessions []storage.DeviceSession
+	AppSKeys       storage.AppSKeys
 	Data           []byte
 }
 
@@ -85,6 +86,7 @@ func getSessions(cmd *cobra.Command, args []string) {
 		checkOutputFormatGS,
 		setupStorageGS,
 		printGetSessionsStartMessage,
+		getAppSessionKeysFromAppServer,
 		getDeviceSessionsfromRedis,
 		marshalData,
 		writeDataToFile,
@@ -137,7 +139,18 @@ func setupStorageGS(ctx *getSessionCtx) error {
 func printGetSessionsStartMessage(ctx *getSessionCtx) error {
 	log.WithFields(log.Fields{
 		"device cnt": len(ctx.Devices),
-	}).Info("Getting device-sessions from network-server storage ...")
+	}).Info("Getting device-sessions from redis storage ...")
+	return nil
+}
+
+func getAppSessionKeysFromAppServer(ctx *getSessionCtx) error {
+	log.Info("Getting session keys from AppServer db ...")
+	keys, err := storage.GetAppSKeys(ctx.ctx, storage.AppServer(), ctx.Devices)
+	if err != nil {
+		return err
+	}
+	ctx.AppSKeys = keys
+	log.Debug("Got session keys from AppServer db")
 	return nil
 }
 
@@ -153,7 +166,7 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 			}).Error("get device-session error: %s", err)
 		} else {
 
-			err := getAppSKey(ctx.ctx, devEUI, s)
+			err := getAppSKey(ctx, devEUI, s)
 			if err != nil {
 				return err
 			}
@@ -171,7 +184,7 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 }
 
 // adds AppSKey from envelope or from SQL
-func getAppSKey(ctx context.Context, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
+func getAppSKey(ctx *getSessionCtx, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
 	lf := log.Fields{
 		"devEUI": devEUI,
 	}
@@ -183,17 +196,14 @@ func getAppSKey(ctx context.Context, devEUI lorawan.EUI64, d *storage.DeviceSess
 		return nil
 	}
 
-	dbdata, err := storage.GetDevice(ctx, storage.AppServer(), devEUI)
-	if err != nil {
-		return fmt.Errorf("devEUI:%s can't get AppSkey from DB: %w", devEUI, err)
-	}
+	AppSKey := ctx.AppSKeys[devEUI]
 
-	if bytes.Equal(dbdata.AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
-		return fmt.Errorf("devEUI:%s zero AppSKey recieved from Application Server", devEUI)
+	if bytes.Equal(AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
+		return fmt.Errorf("devEUI:%s no AppSKey in Application Server's db", devEUI)
 	}
-	d.AppSKey = dbdata.AppSKey
-	log.WithFields(lf).Debug("Got AppSKey from Application Server")
-	// return dbdata.AppSKey, nil
+	d.AppSKey = AppSKey
+	// log.WithFields(lf).Debug("Got AppSKey from Application Server")
+
 	return nil
 }
 

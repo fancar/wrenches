@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/go-redis/redis/v7"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -54,9 +53,8 @@ func Setup(c config.Config) error {
 			PoolSize: c.Redis.PoolSize,
 		})
 	}
-	fmt.Println(c.ApplicationServer)
 
-	log.WithField("dsn", c.NetworkServer.PostgreSQL.DSN).Info("storage: connecting to NetworkServer-PostgreSQL ... ")
+	log.Info("storage: connecting to NetworkServer-PostgreSQL ... ")
 	d, err := sqlx.Open("postgres", c.NetworkServer.PostgreSQL.DSN)
 	if err != nil {
 		return errors.Wrap(err, "storage: NetworkServer-PostgreSQL connection error")

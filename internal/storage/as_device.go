@@ -2,23 +2,12 @@ package storage
 
 import (
 	"context"
-	// "strings"
-	// "fmt"
 	"time"
 
+	"github.com/brocaar/lorawan"
 	uuid "github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq/hstore"
-	// "github.com/pkg/errors"
-	// log "github.com/sirupsen/logrus"
-	// "google.golang.org/grpc"
-	// "google.golang.org/grpc/codes"
-
-	// "github.com/brocaar/chirpstack-api/go/v3/ns"
-	// "github.com/brocaar/chirpstack-application-server/internal/backend/networkserver"
-	// "github.com/brocaar/chirpstack-application-server/internal/config"
-	// "github.com/brocaar/chirpstack-application-server/internal/logging"
-	"github.com/brocaar/lorawan"
 )
 
 // Device defines a LoRaWAN device.
@@ -47,6 +36,9 @@ type Device struct {
 	IsDisabled                bool              `db:"-"`
 }
 
+// AppSKeys map with DevEUI key
+type AppSKeys map[lorawan.EUI64]lorawan.AES128Key
+
 // GetDevice returns the device matching the given DevEUI.
 func GetDevice(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) (Device, error) {
 	var d Device
@@ -56,4 +48,44 @@ func GetDevice(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) (Devi
 	}
 
 	return d, nil
+}
+
+// GetAllAppSKeys returns AppSKeys for all DevEUIs.
+// func GetAllAppSKeys(ctx context.Context, db sqlx.Queryer) (Device, error) {
+// 	var d []Device
+// 	err := sqlx.Select(db, &d, "select * from device where dev_eui = $1", devEUI[:])
+// 	if err != nil {
+// 		return d, handlePSQLError(err, "select error")
+// 	}
+
+// 	return d, nil
+// }
+
+// GetAppSKeys returns AppSKeys for given DevEUIs.
+func GetAppSKeys(ctx context.Context, db sqlx.Queryer, devEUIs []lorawan.EUI64) (AppSKeys, error) {
+	result := make(AppSKeys)
+	query, args, err := sqlx.In("SELECT dev_eui,app_s_key FROM device WHERE dev_eui IN (?);", devEUIs)
+	if err != nil {
+		return result, handlePSQLError(err, "select error")
+	}
+
+	query = sqlx.Rebind(sqlx.DOLLAR, query)
+	rows, err := db.Query(query, args...)
+	// rows, err := db.Query(query)
+	if err != nil {
+		return result, handlePSQLError(err, "query error")
+	}
+
+	for rows.Next() {
+		var eui lorawan.EUI64
+		var key lorawan.AES128Key
+
+		if err := rows.Scan(&eui, &key); err != nil {
+			return result, handlePSQLError(err, "scan row error")
+		}
+
+		result[eui] = key
+	}
+
+	return result, nil
 }
