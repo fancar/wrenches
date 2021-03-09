@@ -183,28 +183,28 @@ type DeviceSession struct {
 
 // DeviceSessionCSV defines a device-session in comma sep. format.
 type DeviceSessionCSV struct {
-	MACVersion string
-	DevEUI     string
-	DevAddr    string
-	JoinEUI    string
+	MACVersion string `csv:"MACVersion"`
+	DevEUI     string `csv:"DevEUI"`
+	DevAddr    string `csv:"DevAddr"`
+	JoinEUI    string `csv:"JoinEUI"`
 
-	TXPowerIndex int
+	TXPowerIndex int `csv:"TXPowerIndex"`
 
-	FCntUp      uint32
-	NFCntDown   uint32
-	AFCntDown   uint32
-	ConfFCnt    uint32
-	FNwkSIntKey string //lorawan.AES128Key
-	SNwkSIntKey string //lorawan.AES128Key
-	NwkSEncKey  string //lorawan.AES128Key
+	FCntUp      uint32 `csv:"FCntUp"`
+	NFCntDown   uint32 `csv:"NFCntDown"`
+	AFCntDown   uint32 `csv:"AFCntDown"`
+	ConfFCnt    uint32 `csv:"ConfFCnt"`
+	FNwkSIntKey string `csv:"FNwkSIntKey"` //lorawan.AES128Key
+	SNwkSIntKey string `csv:"SNwkSIntKey"` //lorawan.AES128Key
+	NwkSEncKey  string `csv:"NwkSEncKey"`  //lorawan.AES128Key
 
-	AppSKey  string // got from KeyEnvelope OR SQL (application-server db)
-	KEKLabel string
+	AppSKey  string `csv:"AppSKey"` // got from KeyEnvelope OR SQL (application-server db)
+	KEKLabel string `csv:"KEKLabel"`
 
-	PingSlotNb            int
-	EnabledUplinkChannels []int
+	PingSlotNb            int   `csv:"PingSlotNb"`
+	EnabledUplinkChannels []int `csv:"EnabledUplinkChannels"`
 
-	IsDisabled bool
+	IsDisabled bool `csv:"IsDisabled"`
 }
 
 // GetDeviceSession returns the device-session for the given DevEUI.

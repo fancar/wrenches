@@ -9,6 +9,7 @@ require (
 	github.com/brocaar/lorawan v0.0.0-20210209142114-4e52629878a0
 	github.com/eclipse/paho.mqtt.golang v1.3.2 // indirect
 	github.com/go-redis/redis/v7 v7.4.0
+	github.com/gocarina/gocsv v0.0.0-20201208093247-67c824bc04d4
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang/protobuf v1.4.3
 	github.com/gomodule/redigo v1.8.4 // indirect

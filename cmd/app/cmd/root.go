@@ -34,7 +34,7 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to configuration file (optional)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to configuration file (optional). Default config.toml")
 	rootCmd.PersistentFlags().Int("log-level", 4, "debug=5, info=4, error=2, fatal=1, panic=0")
 
 	viper.BindPFlag("general.log_level", rootCmd.PersistentFlags().Lookup("log-level"))
@@ -51,9 +51,16 @@ func init() {
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
-	rootCmd.AddCommand(getSessionsCmd)
 
+	rootCmd.AddCommand(getSessionsCmd)
 	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "csv", "output format json/csv. Default: csv")
+
+	rootCmd.AddCommand(setSessionsCmd)
+	// setSessionsCmd.SetUsageTemplate("set-sessions [path/to/csv/file.csv]\n")
+	// setSessionsCmd.PersistentFlags().IntVarP(&Region, "up-cnt-increase", "u", 0, "the number to increase FCntUp counter (required)")
+	// setSessionsCmd.PersistentFlags().IntVarP(&Region, "down-cnt-increase", "d", 0, "the number to increase NFCntDown counter (required)")
+	// setSessionsCmd.MarkPersistentFlagRequired("up-cnt-increase")
+	// setSessionsCmd.MarkPersistentFlagRequired("down-cnt-increase")
 
 }
 
