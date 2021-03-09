@@ -25,9 +25,11 @@ import (
 )
 
 var getSessionsCmd = &cobra.Command{
-	Use:   "get-sessions",
+	Use:   "get-sessions devEui1,devEui2,devEui3",
 	Short: "get  sessions, and store the data in csv",
-	Long: `the app gets from inMemory storage (redis)
+	Long: `
+	the command gets sessions from inMemory storage (redis)
+	and selects app session keys from application-server's sql-storage
 	`,
 	Run: getSessions,
 }
@@ -42,7 +44,7 @@ type getSessionCtx struct {
 	Data           []byte
 }
 
-func parseArgsToCtx(args []string) (*getSessionCtx, error) {
+func gsParseArgsToCtx(args []string) (*getSessionCtx, error) {
 
 	if len(args) == 0 {
 		return &getSessionCtx{}, fmt.Errorf("please specify at least one devEui as argument")
@@ -76,7 +78,7 @@ func parseArgsToCtx(args []string) (*getSessionCtx, error) {
 func getSessions(cmd *cobra.Command, args []string) {
 	setLogLevel()
 
-	ctx, err := parseArgsToCtx(args)
+	ctx, err := gsParseArgsToCtx(args)
 	if err != nil {
 		log.WithError(err).Error("can't parse arguments")
 		return
