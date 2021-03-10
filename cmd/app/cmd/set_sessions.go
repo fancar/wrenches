@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"github.com/fancar/wrenches/internal/config"
 	"github.com/fancar/wrenches/internal/storage"
 	"strconv"
 	// "github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	// "io"
+	"encoding/hex"
 	"os"
 	"reflect"
 	"strings"
@@ -36,6 +38,7 @@ type setSessionCtx struct {
 	ctx       context.Context
 	inputFile string
 	inputData []storage.DeviceSessionCSV
+	// deviceSessions []storage.DeviceSession
 	// Devices        []lorawan.EUI64
 	// DeviceSessions []storage.DeviceSession
 	// AppSKeys       storage.AppSKeys
@@ -65,6 +68,8 @@ func setSessions(cmd *cobra.Command, args []string) {
 	tasks := []func(*setSessionCtx) error{
 		printSetSessionsStartMessage,
 		parseInputFile,
+		setupStorageSS,
+		prepareAndSaveDeviceSessions,
 	}
 
 	for _, t := range tasks {
@@ -79,6 +84,13 @@ func printSetSessionsStartMessage(ctx *setSessionCtx) error {
 	// 	"device cnt": len(ctx.Devices),
 	// })
 	log.Info("Setting device-sessions from file ...")
+	return nil
+}
+
+func setupStorageSS(ctx *setSessionCtx) error {
+	if err := storage.Setup(config.C); err != nil {
+		return fmt.Errorf("setup storage error %w", err)
+	}
 	return nil
 }
 
@@ -115,7 +127,6 @@ func parseInputFile(ctx *setSessionCtx) error {
 				return fmt.Errorf("field %s does not exist within the provided item", head[j])
 			}
 
-			// fmt.Println("setField: ", head[j], item)
 			err := setField(&ds, fieldNum, item)
 			if err != nil {
 				return fmt.Errorf("Unable to set field '%s' with item '%s': %w", head[j], item, err)
@@ -126,12 +137,90 @@ func parseInputFile(ctx *setSessionCtx) error {
 
 	ctx.inputData = result
 	log.Debug(fmt.Sprintf("Found rows in file! %d", len(records)))
-	log.Debug(fmt.Sprintf("rows in result! %d", len(result)))
 
-	// fmt.Println("RECORDS: ", records)
-	// fmt.Println("RESULT: ", result)
 	return nil
 }
+
+// get devices from local db and prepare sessions for devices that exist and save to redis
+func prepareAndSaveDeviceSessions(ctx *setSessionCtx) error {
+	// var items []storage.DeviceSession
+	for _, row := range ctx.inputData {
+		s := storage.DeviceSession{}
+		DevEUI, err := hex.DecodeString(row.DevEUI)
+		if err != nil {
+			log.WithField("DevEUI", row.DevEUI).Error("Can't decode DevEUI hex from string. Row Skipped")
+			continue
+		}
+
+		copy(s.DevEUI[:], DevEUI[:])
+		log.WithField("DevEUI", row.DevEUI).Debug("Looking if the device exists in local ns-db ...")
+
+		d, err := storage.GetDeviceFromNS(ctx.ctx, storage.NetServer(), s.DevEUI)
+		if err != nil {
+			log.WithField("DevEUI", row.DevEUI).Error("Row Skipped. Unable to get device-session: %s", err)
+			continue
+		}
+		// log.WithField("DeviceProfileID", d.DeviceProfileID).Debug("Got it!")
+
+		s.MACVersion = row.MACVersion
+
+		s.DeviceProfileID = d.DeviceProfileID
+		s.ServiceProfileID = d.ServiceProfileID
+		s.RoutingProfileID = d.RoutingProfileID
+
+		// sesion params
+		DevAddr, err := hex.DecodeString(row.DevAddr)
+		JoinEUI, err := hex.DecodeString(row.JoinEUI)
+		FNwkSIntKey, err := hex.DecodeString(row.FNwkSIntKey)
+		SNwkSIntKey, err := hex.DecodeString(row.SNwkSIntKey)
+		NwkSEncKey, err := hex.DecodeString(row.NwkSEncKey)
+		AppSKey, err := hex.DecodeString(row.AppSKey)
+		if err != nil {
+			log.WithError(err).WithField("DevEUI", row.DevEUI).Error("Unable to decode hex session params hex-str required. Skipped")
+			continue
+		}
+		copy(s.DevAddr[:], DevAddr[:])
+		copy(s.JoinEUI[:], JoinEUI[:])
+		copy(s.FNwkSIntKey[:], FNwkSIntKey[:])
+		copy(s.SNwkSIntKey[:], SNwkSIntKey[:])
+		copy(s.NwkSEncKey[:], NwkSEncKey[:])
+
+		s.FCntUp = row.FCntUp + uint32(upCntIncrease)
+		s.NFCntDown = row.NFCntDown + uint32(downCntIncrease)
+		s.AFCntDown = row.AFCntDown
+		s.ConfFCnt = row.ConfFCnt
+
+		s.AppSKeyEvelope = &storage.KeyEnvelope{
+			KEKLabel: row.KEKLabel,
+			AESKey:   AppSKey,
+		}
+
+		s.PingSlotNb = row.PingSlotNb
+		s.IsDisabled = row.IsDisabled
+
+		if err := storage.SaveDeviceSession(ctx.ctx, s); err != nil {
+			return fmt.Errorf("save node-session error: %w", err)
+		}
+
+		if err := storage.FlushMACCommandQueue(ctx.ctx, s.DevEUI); err != nil {
+			return fmt.Errorf("flush mac-command queue error: %s", err)
+		}
+	}
+	return nil
+}
+
+// func createDeviceSession(ctx *setSessionCtx, s *storage.DeviceSession) error {
+// 	if err := storage.SaveDeviceSession(ctx.ctx, &s); err != nil {
+// 		return fmt.Errorf("save node-session error: %w", err)
+// 	}
+
+// 	// if err := storage.FlushMACCommandQueue(ctx.ctx, s.DevEUI); err != nil {
+// 	// 	return fmt.Errorf("flush mac-command queue error: %s", err)
+// 	// }
+// 	return nil
+// }
+
+// ******************************** CSV stuff *********************************************
 
 // compute field indexes by csv-tags of the item stucture
 func computeColumnIndexes(item interface{}, columnNames []string) (map[string]int, error) {

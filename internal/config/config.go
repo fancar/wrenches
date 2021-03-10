@@ -1,7 +1,7 @@
 package config
 
 import (
-// "time"
+	"time"
 )
 
 // Version defines the version.
@@ -23,7 +23,8 @@ type Config struct {
 	} `mapstructure:"redis"`
 
 	NetworkServer struct {
-		PostgreSQL struct {
+		DeviceSessionTTL time.Duration `mapstructure:"device_session_ttl"`
+		PostgreSQL       struct {
 			DSN                string `mapstructure:"dsn"`
 			MaxOpenConnections int    `mapstructure:"max_open_connections"`
 			MaxIdleConnections int    `mapstructure:"max_idle_connections"`

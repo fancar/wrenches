@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"io/ioutil"
+	"time"
 
 	"github.com/fancar/wrenches/internal/config"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +42,8 @@ func init() {
 
 	viper.SetDefault("redis.servers", []string{"localhost:6379"})
 
+	viper.SetDefault("ns.device_session_ttl", time.Hour*24*31)
+
 	viper.SetDefault("ns.postgre.dsn", "postgres://localhost/chirpstack_ns?sslmode=disable")
 	viper.SetDefault("ns.postgre.max_idle_connections", 2)
 	viper.SetDefault("ns.postgre.max_open_connections", 0)
@@ -56,11 +59,10 @@ func init() {
 	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "csv", "output format json/csv. Default: csv")
 
 	rootCmd.AddCommand(setSessionsCmd)
-	// setSessionsCmd.SetUsageTemplate("set-sessions [path/to/csv/file.csv]\n")
-	// setSessionsCmd.PersistentFlags().IntVarP(&Region, "up-cnt-increase", "u", 0, "the number to increase FCntUp counter (required)")
-	// setSessionsCmd.PersistentFlags().IntVarP(&Region, "down-cnt-increase", "d", 0, "the number to increase NFCntDown counter (required)")
+	setSessionsCmd.PersistentFlags().IntVarP(&upCntIncrease, "up-cnt-increase", "u", 0, "the number to increase FCntUp counter (required)")
+	setSessionsCmd.PersistentFlags().IntVarP(&downCntIncrease, "down-cnt-increase", "d", 0, "the number to increase NFCntDown counter (required)")
 	// setSessionsCmd.MarkPersistentFlagRequired("up-cnt-increase")
-	// setSessionsCmd.MarkPersistentFlagRequired("down-cnt-increase")
+	setSessionsCmd.MarkPersistentFlagRequired("down-cnt-increase")
 
 }
 

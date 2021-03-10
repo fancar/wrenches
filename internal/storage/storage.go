@@ -23,7 +23,7 @@ var schedulerInterval time.Duration
 func Setup(c config.Config) error {
 	log.Info("storage: setting up storage module ...")
 
-	// deviceSessionTTL = c.NetworkServer.DeviceSessionTTL
+	deviceSessionTTL = c.NetworkServer.DeviceSessionTTL
 	// schedulerInterval = c.NetworkServer.Scheduler.SchedulerInterval
 
 	log.Info("storage: setting up Redis client ...")

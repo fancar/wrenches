@@ -228,6 +228,56 @@ func GetDeviceSession(ctx context.Context, devEUI lorawan.EUI64) (*DeviceSession
 	return deviceSessionFromPB(&dsPB), nil
 }
 
+// SaveDeviceSession saves the device-session. In case it doesn't exist yet
+// it will be created.
+func SaveDeviceSession(ctx context.Context, s DeviceSession) error {
+	devAddrKey := fmt.Sprintf(devAddrKeyTempl, s.DevAddr)
+	devSessKey := fmt.Sprintf(deviceSessionKeyTempl, s.DevEUI)
+
+	dsPB := deviceSessionToPB(s)
+	b, err := proto.Marshal(&dsPB)
+	if err != nil {
+		return fmt.Errorf("protobuf encode error: %w", err)
+	}
+
+	// Note that we must execute the DevAddr set related operations in multiple
+	// tx pipelines in order to support Redis Cluster. It can not be guaranteed
+	// that devAddrKey, pendingDevAddrKey and DevSessKey are on the same Cluster
+	// shard.
+	// fmt.Println("devAddrKey:", devAddrKey, s.DevEUI[:], deviceSessionTTL)
+
+	pipe := RedisClient().TxPipeline()
+	pipe.SAdd(devAddrKey, s.DevEUI[:])
+	pipe.PExpire(devAddrKey, deviceSessionTTL)
+	if _, err := pipe.Exec(); err != nil {
+		return fmt.Errorf("exec error: %w", err)
+	}
+
+	if s.PendingRejoinDeviceSession != nil {
+		pendingDevAddrKey := fmt.Sprintf(devAddrKeyTempl, s.PendingRejoinDeviceSession.DevAddr)
+
+		pipe = RedisClient().TxPipeline()
+		pipe.SAdd(pendingDevAddrKey, s.DevEUI[:])
+		pipe.PExpire(pendingDevAddrKey, deviceSessionTTL)
+		if _, err := pipe.Exec(); err != nil {
+			return fmt.Errorf("exec error: %w", err)
+		}
+	}
+
+	err = RedisClient().Set(devSessKey, b, deviceSessionTTL).Err()
+	if err != nil {
+		return fmt.Errorf("set error: %w", err)
+	}
+
+	log.WithFields(log.Fields{
+		"dev_eui":  s.DevEUI,
+		"dev_addr": s.DevAddr,
+		// "ctx_id":   ctx.Value(logging.ContextIDKey),
+	}).Info("device-session saved")
+
+	return nil
+}
+
 func deviceSessionToPB(d DeviceSession) DeviceSessionPB {
 	out := DeviceSessionPB{
 		MacVersion: d.MACVersion,
