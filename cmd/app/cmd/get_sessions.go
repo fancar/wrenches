@@ -26,7 +26,7 @@ import (
 
 var getSessionsCmd = &cobra.Command{
 	Use:   "get-sessions devEui1,devEui2,devEui3",
-	Short: "get  sessions, and store the data in csv",
+	Short: "get  sessions, and store the data in csv. Use 'set-sessions help' for details",
 	Long: `
 	the command gets sessions from inMemory storage (redis)
 	and selects app session keys from application-server's sql-storage

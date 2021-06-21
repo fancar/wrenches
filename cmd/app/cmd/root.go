@@ -55,6 +55,13 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
 
+	rootCmd.AddCommand(plCryptCmd)
+	// plCryptCmd.PersistentFlags().StringVarP(&plCryptData, "decrypt", "i", "", "decrypt data. Hex String Byte Array")
+	plCryptCmd.PersistentFlags().StringVarP(&plCryptAppSessonKey, "session-key", "s", "", "Application Session Key")
+	plCryptCmd.PersistentFlags().StringVarP(&plCryptDevAddr, "devaddr", "a", "", "specify device DevAddr")
+	plCryptCmd.PersistentFlags().Uint32VarP(&plCryptFCnt, "fCnt", "f", 0, "specify device fCnt")
+	plCryptCmd.Flags().BoolVarP(&plCryptDecrypt, "decrypt", "d", false, "decrypt data. (By default data will be encrypted)")
+
 	rootCmd.AddCommand(getSessionsCmd)
 	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "csv", "output format json/csv. Default: csv")
 

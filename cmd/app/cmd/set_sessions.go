@@ -19,10 +19,11 @@ import (
 
 var setSessionsCmd = &cobra.Command{
 	Use:   "set-sessions path/to/file.csv",
-	Short: "save session to server-storages. Only for devices that exists in db!",
+	Short: "save session to server-storages. Use 'set-sessions help' for details",
 	Long: `
 	the command saves sessions to inMemory storage (redis)
 	and put application session keys to app-server database.
+	Only for devices that exists in db!
 	- All devices that don't present at the platform will be skipped!
 	- please note that you must increase up\down counters by your own!
 	  (-u, -d params) in case it can take some time to move the devices.
