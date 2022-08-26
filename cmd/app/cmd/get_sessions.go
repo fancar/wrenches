@@ -149,7 +149,8 @@ func getAppSessionKeysFromAppServer(ctx *getSessionCtx) error {
 	log.Info("Getting session keys from AppServer db ...")
 	keys, err := storage.GetAppSKeys(ctx.ctx, storage.AppServer(), ctx.Devices)
 	if err != nil {
-		return err
+		log.WithError(err).Errorf("getAppSessionKeysFromAppServer ")
+		return nil
 	}
 	ctx.AppSKeys = keys
 	log.Debug("Got session keys from AppServer db")
@@ -187,24 +188,32 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 
 // adds AppSKey from envelope or from SQL
 func getAppSKey(ctx *getSessionCtx, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
+	if ctx.AppSKeys == nil {
+		return nil
+	}
+
 	lf := log.Fields{
 		"devEUI": devEUI,
 	}
 
 	if d.AppSKeyEvelope != nil {
 		d.KEKLabel = d.AppSKeyEvelope.KEKLabel
-		copy(d.AppSKey[:], d.AppSKeyEvelope.AESKey[:])
-		log.WithFields(lf).Info("Got addAppSKey from Session (AppSKeyEvelope)")
+		copy(d.AESKey[:], d.AppSKeyEvelope.AESKey[:])
+		log.WithFields(lf).Info("Got AESKey from Session (AppSKeyEvelope)")
 		return nil
 	}
 
+	if ctx.AppSKeys == nil {
+		return nil
+
+	}
 	AppSKey := ctx.AppSKeys[devEUI]
 
 	if bytes.Equal(AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
-		return fmt.Errorf("devEUI:%s no AppSKey in Application Server's db", devEUI)
+		log.Warnf("! no AppSKey in Application Server's db for devEUI: %s", devEUI)
+		return nil
 	}
 	d.AppSKey = AppSKey
-	// log.WithFields(lf).Debug("Got AppSKey from Application Server")
 
 	return nil
 }

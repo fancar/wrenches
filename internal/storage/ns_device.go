@@ -33,6 +33,7 @@ type NSDevice struct {
 	ReferenceAltitude float64       `db:"reference_altitude"`
 	Mode              DeviceMode    `db:"mode"`
 	IsDisabled        bool          `db:"is_disabled"`
+	KeepQueue         bool          `db:"keep_queue"`
 }
 
 // DeviceActivation defines the device-activation for a LoRaWAN device.

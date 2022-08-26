@@ -1,0 +1,2 @@
+"MACVersion","DevEUI","DevAddr","JoinEUI","TXPowerIndex","FCntUp","NFCntDown","AFCntDown","ConfFCnt","FNwkSIntKey","SNwkSIntKey","NwkSEncKey","KEKLabel","PingSlotNb","RX2DR","RX2Frequency","EnabledUplinkChannels","IsDisabled","RXWindow","RXDelay","RX1DROffset","NbTrans","TXPowerIndex","DR"
+"1.0.4",3434383562376812,740396,497900020000001,0,11,7,0,0,"f72aea9981a2c59c4a2286ad83671aba","f72aea9981a2c59c4a2286ad83671aba","f72aea9981a2c59c4a2286ad83671aba",,0,2,923300000,"0,1,2,3","false",1,3,3,3,3,3

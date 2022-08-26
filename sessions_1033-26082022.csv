@@ -1,0 +1,2 @@
+MACVersion,DevEUI,DevAddr,JoinEUI,TXPowerIndex,FCntUp,NFCntDown,AFCntDown,ConfFCnt,FNwkSIntKey,SNwkSIntKey,NwkSEncKey,AppSKey,KEKLabel,PingSlotNb,EnabledUplinkChannels,IsDisabled
+1.0.4,3434383562376812,74039600,4979000200000000,0,12,8,0,0,f72aea9981a2c59c4a2286ad83671aba,f72aea9981a2c59c4a2286ad83671aba,f72aea9981a2c59c4a2286ad83671aba,30a69a607fb76ac7b30e357a30677a61,,0,,false

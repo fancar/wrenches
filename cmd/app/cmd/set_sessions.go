@@ -175,11 +175,7 @@ func prepareAndSaveDeviceSessions(ctx *setSessionCtx) error {
 		FNwkSIntKey, err := hex.DecodeString(row.FNwkSIntKey)
 		SNwkSIntKey, err := hex.DecodeString(row.SNwkSIntKey)
 		NwkSEncKey, err := hex.DecodeString(row.NwkSEncKey)
-		AppSKey, err := hex.DecodeString(row.AppSKey)
-		if err != nil {
-			log.WithError(err).WithField("DevEUI", row.DevEUI).Error("Unable to decode hex session params hex-str required. Skipped")
-			continue
-		}
+
 		copy(s.DevAddr[:], DevAddr[:])
 		copy(s.JoinEUI[:], JoinEUI[:])
 		copy(s.FNwkSIntKey[:], FNwkSIntKey[:])
@@ -191,13 +187,32 @@ func prepareAndSaveDeviceSessions(ctx *setSessionCtx) error {
 		s.AFCntDown = row.AFCntDown
 		s.ConfFCnt = row.ConfFCnt
 
-		s.AppSKeyEvelope = &storage.KeyEnvelope{
-			KEKLabel: row.KEKLabel,
-			AESKey:   AppSKey,
+		if row.KEKLabel != "" {
+			AESKey, err := hex.DecodeString(row.AESKey)
+			if err != nil {
+				log.WithError(err).WithField("DevEUI", row.DevEUI).Error("Unable to decode hex session params hex-str required. Skipped")
+				continue
+			}
+			s.AppSKeyEvelope = &storage.KeyEnvelope{
+				KEKLabel: row.KEKLabel,
+				AESKey:   AESKey,
+			}
 		}
 
 		s.PingSlotNb = row.PingSlotNb
 		s.IsDisabled = row.IsDisabled
+
+		s.RXWindow = storage.RXWindow(row.RXWindow)
+		s.RXDelay = uint8(row.RXDelay)
+		s.RX1DROffset = uint8(row.RX1DROffset)
+		s.RX2Frequency = row.RX2Frequency
+		s.RX2DR = uint8(row.RX2DR)
+
+		s.NbTrans = uint8(row.NbTrans)
+		s.TXPowerIndex = int(row.TXPowerIndex)
+		s.DR = int(row.DR)
+
+		s.EnabledUplinkChannels = append(s.EnabledUplinkChannels, row.EnabledUplinkChannels...)
 
 		if err := storage.SaveDeviceSession(ctx.ctx, s); err != nil {
 			return fmt.Errorf("save node-session error: %w", err)
