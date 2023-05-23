@@ -124,7 +124,8 @@ var configCmd = &cobra.Command{
   Short: "Print the configuration file",
   RunE: func(cmd *cobra.Command, args []string) error {
     t := template.Must(template.New("config").Parse(configTemplate))
-    err := t.Execute(os.Stdout, &config.C)
+    cfg := config.Get()
+    err := t.Execute(os.Stdout, &cfg)
     if err != nil {
       return errors.Wrap(err, "execute config template error")
     }

@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"context"
-	// "net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	// "github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	// "github.com/fancar/wrenches/internal/config"
@@ -19,7 +17,6 @@ func run(cnd *cobra.Command, args []string) error {
 	tasks := []func(context.Context, *sync.WaitGroup) error{
 		// setLogLevel,
 		printStartMessage,
-		// setupPrometheus,
 		// startSomeRoutine,
 	}
 
@@ -58,24 +55,3 @@ func printStartMessage(ctx context.Context, wg *sync.WaitGroup) error {
 	}).Info("starting iot-tools ...")
 	return nil
 }
-
-// func setupPrometheus(ctx context.Context, wg *sync.WaitGroup) error {
-// 	log.WithFields(log.Fields{
-// 		"bind": config.C.Prometheus.Bind,
-// 	}).Info("starting Prometheus endpoint server")
-
-// 	mux := http.NewServeMux()
-// 	mux.Handle("/metrics", promhttp.Handler())
-
-// 	server := http.Server{
-// 		Handler: mux,
-// 		Addr:    config.C.Prometheus.Bind,
-// 	}
-
-// 	go func() {
-// 		err := server.ListenAndServe()
-// 		log.WithError(err).Error("prometheus endpoint server error")
-// 	}()
-
-// 	return nil
-// }

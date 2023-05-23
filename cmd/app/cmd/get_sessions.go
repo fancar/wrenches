@@ -26,10 +26,9 @@ import (
 
 var getSessionsCmd = &cobra.Command{
 	Use:   "get-sessions devEui1,devEui2,devEui3",
-	Short: "get  sessions, and store the data in csv. Use 'set-sessions help' for details",
+	Short: "get sessions, and store the data in csv. Use 'set-sessions help' for details",
 	Long: `
-	the command gets sessions from inMemory storage (redis)
-	and selects app session keys from application-server's sql-storage
+	gets sessions for the list of devices and saves the output in file
 	`,
 	Run: getSessions,
 }
@@ -40,7 +39,7 @@ type getSessionCtx struct {
 	ctx            context.Context
 	Devices        []lorawan.EUI64
 	DeviceSessions []storage.DeviceSession
-	AppSKeys       storage.AppSKeys
+	AppSKeys       storage.AppSKeys // from AS. TEMP
 	Data           []byte
 }
 
@@ -132,7 +131,7 @@ func checkOutputFormatGS(ctx *getSessionCtx) error {
 }
 
 func setupStorageGS(ctx *getSessionCtx) error {
-	if err := storage.Setup(config.C); err != nil {
+	if err := storage.Setup(config.Get()); err != nil {
 		return fmt.Errorf("setup storage error %w", err)
 	}
 	return nil
@@ -169,7 +168,7 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 			}).Error("get device-session error: %s", err)
 		} else {
 
-			err := getAppSKey(ctx, devEUI, s)
+			err := addAppSKeyFromAS(ctx, devEUI, s)
 			if err != nil {
 				return err
 			}
@@ -186,34 +185,30 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 
 }
 
-// adds AppSKey from envelope or from SQL
-func getAppSKey(ctx *getSessionCtx, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
+// adds AppSKey from envelope or from as storage
+func addAppSKeyFromAS(ctx *getSessionCtx, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
 	if ctx.AppSKeys == nil {
 		return nil
 	}
 
-	lf := log.Fields{
-		"devEUI": devEUI,
-	}
+	// lf := log.Fields{
+	// 	"devEUI": devEUI,
+	// }
 
-	if d.AppSKeyEvelope != nil {
-		d.KEKLabel = d.AppSKeyEvelope.KEKLabel
-		copy(d.AESKey[:], d.AppSKeyEvelope.AESKey[:])
-		log.WithFields(lf).Info("Got AESKey from Session (AppSKeyEvelope)")
-		return nil
-	}
+	// if d.AppSKeyEvelope != nil {
+	// 	d.KeKLabel = d.AppSKeyEvelope.KEKLabel
+	// 	copy(d.AesKey[:], d.AppSKeyEvelope.AESKey[:])
+	// 	log.WithFields(lf).Info("Got AESKey from Session (AppSKeyEvelope)")
+	// 	return nil
+	// }
 
-	if ctx.AppSKeys == nil {
-		return nil
-
-	}
 	AppSKey := ctx.AppSKeys[devEUI]
 
 	if bytes.Equal(AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
 		log.Warnf("! no AppSKey in Application Server's db for devEUI: %s", devEUI)
 		return nil
 	}
-	d.AppSKey = AppSKey
+	d.AppSKeyOnAS = AppSKey
 
 	return nil
 }
@@ -252,6 +247,12 @@ func marshalData(ctx *getSessionCtx) error {
 }
 
 func writeDataToFile(ctx *getSessionCtx) error {
+	if gsOutputFormat == "json" {
+		if ctx.Data != nil {
+			fmt.Println("GOT SESSIONS: \n %s \n", string(ctx.Data))
+		}
+		return nil
+	}
 
 	fname := fmt.Sprintf("sessions_%s.%s", time.Now().Format("1504-02012006"), gsOutputFormat)
 	err := ioutil.WriteFile(fname, ctx.Data, 0644)

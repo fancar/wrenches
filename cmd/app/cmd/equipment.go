@@ -10,25 +10,30 @@ import (
 )
 
 func setLogLevel() {
-	log.SetLevel(log.Level(uint8(config.C.General.LogLevel)))
+	// err := log.SetLevel(log.Level(uint8(config.Get().General.LogLevel)))
+	// err := log.SetLevel(log.Level(5))
+	// if err != nil {
+	// 	log.WithError(err).Error("can't set loglevel")
+	// }
+
 	log.WithFields(log.Fields{
 		"version":  version,
-		"loglevel": config.C.General.LogLevel,
+		"loglevel": config.Get().General.LogLevel,
 		// "docs":    "https://www. ... .su/",
 	}).Info("[WRENCH] iot-server | additional tools have been started!")
 }
 
 func initLogger() {
-	log.SetLevel(log.Level(uint8(config.C.General.LogLevel)))
+	log.SetLevel(log.Level(uint8(config.Get().General.LogLevel)))
 	log.WithFields(log.Fields{
 		"version":  version,
-		"loglevel": config.C.General.LogLevel,
+		"loglevel": config.Get().General.LogLevel,
 		// "docs":    "https://www. ... .su/",
 	}).Info("[WRENCH] iot-server | additional tools have been started!")
 }
 
 func setupStorage() error {
-	if err := storage.Setup(config.C); err != nil {
+	if err := storage.Setup(config.Get()); err != nil {
 		return fmt.Errorf("setup storage error %w", err)
 	}
 	return nil

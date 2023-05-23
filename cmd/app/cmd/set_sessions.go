@@ -89,7 +89,7 @@ func printSetSessionsStartMessage(ctx *setSessionCtx) error {
 }
 
 func setupStorageSS(ctx *setSessionCtx) error {
-	if err := storage.Setup(config.C); err != nil {
+	if err := storage.Setup(config.Get()); err != nil {
 		return fmt.Errorf("setup storage error %w", err)
 	}
 	return nil
@@ -187,15 +187,15 @@ func prepareAndSaveDeviceSessions(ctx *setSessionCtx) error {
 		s.AFCntDown = row.AFCntDown
 		s.ConfFCnt = row.ConfFCnt
 
-		if row.KEKLabel != "" {
+		if row.AESKey != "" {
 			AESKey, err := hex.DecodeString(row.AESKey)
 			if err != nil {
 				log.WithError(err).WithField("DevEUI", row.DevEUI).Error("Unable to decode hex session params hex-str required. Skipped")
 				continue
 			}
 			s.AppSKeyEvelope = &storage.KeyEnvelope{
-				KEKLabel: row.KEKLabel,
-				AESKey:   AESKey,
+				KekLabel: row.KEKLabel,
+				AesKey:   AESKey,
 			}
 		}
 

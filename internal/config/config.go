@@ -2,6 +2,8 @@ package config
 
 import (
 	"time"
+
+	"github.com/brocaar/lorawan/band"
 )
 
 // Version defines the version.
@@ -23,6 +25,7 @@ type Config struct {
 	} `mapstructure:"redis"`
 
 	NetworkServer struct {
+		BandName         band.Name     `mapstructure:"band_name"`
 		DeviceSessionTTL time.Duration `mapstructure:"device_session_ttl"`
 		PostgreSQL       struct {
 			DSN                string `mapstructure:"dsn"`
@@ -45,4 +48,15 @@ type Config struct {
 }
 
 // C holds the global configuration.
-var C Config
+var c Config
+
+// Get
+func Get() Config {
+	return c
+}
+
+// Set
+func Set(cfg Config) {
+	c = cfg
+	return
+}

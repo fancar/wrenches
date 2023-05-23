@@ -42,6 +42,7 @@ func init() {
 
 	viper.SetDefault("redis.servers", []string{"localhost:6379"})
 
+	viper.SetDefault("ns.band_name", "RU864")
 	viper.SetDefault("ns.device_session_ttl", time.Hour*24*31)
 
 	viper.SetDefault("ns.postgre.dsn", "postgres://localhost/chirpstack_ns?sslmode=disable")
@@ -63,7 +64,7 @@ func init() {
 	plCryptCmd.Flags().BoolVarP(&plCryptDecrypt, "decrypt", "d", false, "decrypt data. (By default data will be encrypted)")
 
 	rootCmd.AddCommand(getSessionsCmd)
-	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "csv", "output format json/csv. Default: csv")
+	getSessionsCmd.Flags().StringVarP(&gsOutputFormat, "output-format", "o", "json", "output format json/csv. Default: json")
 
 	rootCmd.AddCommand(setSessionsCmd)
 	setSessionsCmd.PersistentFlags().IntVarP(&upCntIncrease, "up-cnt-increase", "u", 0, "the number to increase FCntUp counter (required)")
@@ -97,8 +98,9 @@ func initConfig() {
 			}
 		}
 	}
-
-	if err := viper.Unmarshal(&config.C); err != nil {
+	var cfg config.Config
+	if err := viper.Unmarshal(&cfg); err != nil {
 		log.WithError(err).Fatal("unmarshal config error")
 	}
+	config.Set(cfg)
 }
