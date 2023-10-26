@@ -1,15 +1,15 @@
 package storage
 
 import (
+	"time"
+
 	"github.com/go-redis/redis/v7"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"time"
-	// migrate "github.com/rubenv/sql-migrate"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fancar/wrenches/internal/config"
-	// "github.com/brocaar/chirpstack-network-server/internal/migrations"
 )
 
 // deviceSessionTTL holds the device-session TTL.
@@ -21,8 +21,6 @@ var schedulerInterval time.Duration
 
 // Setup configures the storage backend.
 func Setup(c config.Config) error {
-	log.Info("storage: setting up storage module ...")
-
 	deviceSessionTTL = c.NetworkServer.DeviceSessionTTL
 	// schedulerInterval = c.NetworkServer.Scheduler.SchedulerInterval
 
@@ -88,5 +86,45 @@ func Setup(c config.Config) error {
 	}
 	asDB = &DBLogger{d}
 
+	log.Debug("storage: setting up ClickHouse client ... ")
+	// var err error
+	hrDB, err = InitClickhouse(c)
+	if err != nil {
+		return errors.Wrap(err, "storage: ClickHouse setup error")
+	}
+
+	return nil
+}
+
+// SetupSecondRedis configures the second redis storage backend.
+func SetupSecondRedis(c config.Config) error {
+	cfg := c.RedisSecond
+	log.Info("storage: setting up client for Second Redis storage ...")
+	if len(cfg.Servers) == 0 {
+		return errors.New("at least one SECOND redis server must be configured")
+	}
+
+	if cfg.Cluster {
+		redisSecondClient = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:    cfg.Servers,
+			PoolSize: cfg.PoolSize,
+			Password: cfg.Password,
+		})
+	} else if c.RedisSecond.MasterName != "" {
+		redisSecondClient = redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:       cfg.MasterName,
+			SentinelAddrs:    cfg.Servers,
+			SentinelPassword: cfg.Password,
+			DB:               cfg.Database,
+			PoolSize:         cfg.PoolSize,
+		})
+	} else {
+		redisSecondClient = redis.NewClient(&redis.Options{
+			Addr:     cfg.Servers[0],
+			DB:       cfg.Database,
+			Password: cfg.Password,
+			PoolSize: cfg.PoolSize,
+		})
+	}
 	return nil
 }

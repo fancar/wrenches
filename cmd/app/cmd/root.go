@@ -42,8 +42,20 @@ func init() {
 
 	viper.SetDefault("redis.servers", []string{"localhost:6379"})
 
-	viper.SetDefault("ns.band_name", "RU864")
+	// viper.SetDefault("ns.band_name", "RU864")
 	viper.SetDefault("ns.device_session_ttl", time.Hour*24*31)
+
+	viper.SetDefault("ns.band.name", "RU864")
+	viper.SetDefault("ns.band.uplink_max_eirp", -1)
+
+	viper.SetDefault("ns.network_settings.installation_margin", 10)
+	viper.SetDefault("ns.network_settings.rx1_delay", 1)
+	viper.SetDefault("ns.network_settings.rx2_frequency", 0)
+	viper.SetDefault("ns.network_settings.rx2_dr", 0)
+	viper.SetDefault("ns.network_settings.gateway_prefer_min_margin", 10)
+	viper.SetDefault("ns.network_settings.downlink_tx_power", 0)
+	viper.SetDefault("ns.network_settings.disable_adr", false)
+	viper.SetDefault("ns.network_settings.max_mac_command_error_count", 3)
 
 	viper.SetDefault("ns.postgre.dsn", "postgres://localhost/chirpstack_ns?sslmode=disable")
 	viper.SetDefault("ns.postgre.max_idle_connections", 2)
@@ -52,6 +64,15 @@ func init() {
 	viper.SetDefault("as.postgre.dsn", "postgres://localhost/chirpstack_as?sslmode=disable")
 	viper.SetDefault("as.postgre.max_idle_connections", 2)
 	viper.SetDefault("as.postgre.max_open_connections", 0)
+
+	viper.SetDefault("clickhouse.host", "localhost")
+	viper.SetDefault("clickhouse.port", "9000")
+	viper.SetDefault("clickhouse.username", "default")
+	viper.SetDefault("clickhouse.password", "")
+	viper.SetDefault("clickhouse.database", "iot_flow")
+	viper.SetDefault("clickhouse.debug", false)
+	viper.SetDefault("clickhouse.automigrate", true)
+	viper.SetDefault("clickhouse.default_schema.ttl", 12)
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
@@ -71,6 +92,12 @@ func init() {
 	setSessionsCmd.PersistentFlags().IntVarP(&downCntIncrease, "down-cnt-increase", "d", 0, "the number to increase NFCntDown counter (required)")
 	// setSessionsCmd.MarkPersistentFlagRequired("up-cnt-increase")
 	setSessionsCmd.MarkPersistentFlagRequired("down-cnt-increase")
+
+	rootCmd.AddCommand(restoreSessionsCmd)
+	rootCmd.AddCommand(restoreSessionFromDumpCmd)
+
+	restoreSessionFromDumpCmd.PersistentFlags().StringVarP(&DateTimeOfRedisDump, "redis-dump-datetime", "d", "", "the datetime when second redis dump had been taken. ex '2006-01-02 15:04:05 -0700'")
+	restoreSessionFromDumpCmd.MarkPersistentFlagRequired("redis-dump-datetime")
 
 }
 

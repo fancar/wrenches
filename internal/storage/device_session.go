@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v7"
@@ -184,6 +185,15 @@ type DeviceSession struct {
 	Per float64
 }
 
+// GetMACVersion returns the LoRaWAN mac version.
+func (s DeviceSession) GetMACVersion() lorawan.MACVersion {
+	if strings.HasPrefix(s.MACVersion, "1.1") {
+		return lorawan.LoRaWAN1_1
+	}
+
+	return lorawan.LoRaWAN1_0
+}
+
 // DeviceSessionCSV defines a device-session in comma sep. format.
 type DeviceSessionCSV struct {
 	MACVersion string `csv:"MACVersion"`
@@ -220,11 +230,11 @@ type DeviceSessionCSV struct {
 }
 
 // GetDeviceSession returns the device-session for the given DevEUI.
-func GetDeviceSession(ctx context.Context, devEUI lorawan.EUI64) (*DeviceSession, error) {
-	key := fmt.Sprintf(deviceSessionKeyTempl, config.Get().NetworkServer.BandName, devEUI)
+func GetDeviceSession(ctx context.Context, client redis.UniversalClient, devEUI lorawan.EUI64) (*DeviceSession, error) {
+	key := fmt.Sprintf(deviceSessionKeyTempl, config.Get().NetworkServer.Band.Name, devEUI)
 	var dsPB DeviceSessionPB
 
-	val, err := RedisClient().Get(key).Bytes()
+	val, err := client.Get(key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
 			return &DeviceSession{}, ErrDoesNotExist
@@ -244,7 +254,7 @@ func GetDeviceSession(ctx context.Context, devEUI lorawan.EUI64) (*DeviceSession
 // it will be created.
 func SaveDeviceSession(ctx context.Context, s DeviceSession) error {
 	devAddrKey := fmt.Sprintf(devAddrKeyTempl, s.DevAddr)
-	devSessKey := fmt.Sprintf(deviceSessionKeyTempl, config.Get().NetworkServer.BandName, s.DevEUI)
+	devSessKey := fmt.Sprintf(deviceSessionKeyTempl, config.Get().NetworkServer.Band.Name, s.DevEUI)
 
 	dsPB := deviceSessionToPB(s)
 	b, err := proto.Marshal(dsPB)
@@ -526,7 +536,7 @@ func deviceSessionFromPB(d *DeviceSessionPB) *DeviceSession {
 
 	for i, c := range d.ExtraUplinkChannels {
 		out.ExtraUplinkChannels[int(i)] = loraband.Channel{
-			Frequency: int(c.Frequency),
+			Frequency: c.Frequency,
 			MinDR:     int(c.MinDr),
 			MaxDR:     int(c.MaxDr),
 		}

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/brocaar/lorawan"
@@ -10,14 +11,15 @@ import (
 	"github.com/lib/pq/hstore"
 )
 
-// Device defines a LoRaWAN device.
+// Device defines a LoRaWAN device according to AS
 type Device struct {
 	DevEUI                    lorawan.EUI64     `db:"dev_eui"`
-	CreatedAt                 time.Time         `db:"created_at"`
+	CreatedAt                 *time.Time        `db:"created_at"`
 	UpdatedAt                 time.Time         `db:"updated_at"`
 	LastSeenAt                *time.Time        `db:"last_seen_at"`
-	ApplicationID             int64             `db:"application_id"`
+	ApplicationID             int64             `db:"application_id"` // The relation will be removed. ERTH-mod
 	DeviceProfileID           uuid.UUID         `db:"device_profile_id"`
+	DeviceProfileName         string            `db:"device_profile_name"`
 	Name                      string            `db:"name"`
 	Description               string            `db:"description"`
 	SkipFCntCheck             bool              `db:"-"`
@@ -33,14 +35,31 @@ type Device struct {
 	AppSKey                   lorawan.AES128Key `db:"app_s_key"`
 	Variables                 hstore.Hstore     `db:"variables"`
 	Tags                      hstore.Hstore     `db:"tags"`
-	IsDisabled                bool              `db:"-"`
+	IsDisabled                bool              `db:"is_disabled"`
+	KeepQueue                 bool              `db:"-"`
+	BatteryUpdatedAt          sql.NullTime      `db:"battery_status_updated_at"` // ERTH-mod
+	BatteryLevelUpdatedAt     sql.NullTime      `db:"battery_level_updated_at"`  // ERTH-mod
+	BatteryReplacedAt         sql.NullTime      `db:"battery_replaced_at"`       // ERTH-mod
+	FirstUplinkAt             sql.NullTime      `db:"first_uplink_at"`           // ERTH-mod
+	UpdatedByUserAt           sql.NullTime      `db:"updated_by_userid_at"`      // ERTH-mod
+	UpdatedByUserID           sql.NullInt64     `db:"updated_by_userid"`         // ERTH-mod
+	AvgPER                    sql.NullFloat64   `db:"avg_per"`                   // ERTH-mod
+	AvgSNR                    sql.NullFloat64   `db:"avg_snr"`                   // ERTH-mod
+	AvgRSSI                   sql.NullFloat64   `db:"avg_rssi"`                  // ERTH-mod
+
+	//  is a new relation id instead of ApplicationID
+	RoutingProfileID   int64          `db:"routing_profile_id"`   // ERTH-mod, used to be asrp_id
+	ServiceProfileID   uuid.UUID      `db:"service_profile_id"`   // ERTH-mod
+	ServiceProfileName sql.NullString `db:"service_profile_name"` // ERTH-mod
+
+	FCntAutomaticReset bool `db:"fcnt_automatic_reset"` // ERTH-mod
 }
 
 // AppSKeys map with DevEUI key
 type AppSKeys map[lorawan.EUI64]lorawan.AES128Key
 
-// GetDevice returns the device matching the given DevEUI.
-func GetDevice(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) (Device, error) {
+// GetDeviceFromAS returns the device matching the given DevEUI.
+func GetDeviceFromAS(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) (Device, error) {
 	var d Device
 	err := sqlx.Get(db, &d, "select * from device where dev_eui = $1", devEUI[:])
 	if err != nil {

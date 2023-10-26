@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -9,7 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	// "github.com/fancar/wrenches/internal/config"
+
+	"github.com/fancar/wrenches/internal/band"
+	"github.com/fancar/wrenches/internal/config"
 )
 
 func run(cnd *cobra.Command, args []string) error {
@@ -17,6 +20,7 @@ func run(cnd *cobra.Command, args []string) error {
 	tasks := []func(context.Context, *sync.WaitGroup) error{
 		// setLogLevel,
 		printStartMessage,
+		setupBand,
 		// startSomeRoutine,
 	}
 
@@ -43,6 +47,14 @@ func run(cnd *cobra.Command, args []string) error {
 	case <-exitChan:
 	case s := <-sigChan:
 		log.WithField("signal", s).Info("signal received, terminating")
+	}
+
+	return nil
+}
+
+func setupBand(ctx context.Context, wg *sync.WaitGroup) error {
+	if err := band.Setup(config.Get()); err != nil {
+		return fmt.Errorf("unable setup band %w", err)
 	}
 
 	return nil

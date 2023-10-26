@@ -160,57 +160,21 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 	var items []storage.DeviceSession
 
 	for _, devEUI := range ctx.Devices {
-		s, err := storage.GetDeviceSession(ctx.ctx, devEUI)
+		s, err := storage.GetDeviceSession(ctx.ctx, storage.RedisClient(), devEUI)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithError(err).WithFields(log.Fields{
 				"dev_eui": devEUI,
-				// "ctx_id":   ctx.Value(logging.ContextIDKey),
-			}).Error("get device-session error: %s", err)
+			}).Error("can't get device-session")
 		} else {
-
-			err := addAppSKeyFromAS(ctx, devEUI, s)
-			if err != nil {
-				return err
-			}
-
-			// s.AppSKey = key
 			items = append(items, *s)
 		}
 	}
 
 	ctx.DeviceSessions = items
-	log.WithField("items_len", len(items)).Debug("Got sessions from Redis!")
+	log.WithField("items_len", len(items)).Debug("Got sessions from Redis")
 
 	return nil
 
-}
-
-// adds AppSKey from envelope or from as storage
-func addAppSKeyFromAS(ctx *getSessionCtx, devEUI lorawan.EUI64, d *storage.DeviceSession) error {
-	if ctx.AppSKeys == nil {
-		return nil
-	}
-
-	// lf := log.Fields{
-	// 	"devEUI": devEUI,
-	// }
-
-	// if d.AppSKeyEvelope != nil {
-	// 	d.KeKLabel = d.AppSKeyEvelope.KEKLabel
-	// 	copy(d.AesKey[:], d.AppSKeyEvelope.AESKey[:])
-	// 	log.WithFields(lf).Info("Got AESKey from Session (AppSKeyEvelope)")
-	// 	return nil
-	// }
-
-	AppSKey := ctx.AppSKeys[devEUI]
-
-	if bytes.Equal(AppSKey[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
-		log.Warnf("! no AppSKey in Application Server's db for devEUI: %s", devEUI)
-		return nil
-	}
-	d.AppSKeyOnAS = AppSKey
-
-	return nil
 }
 
 func marshalData(ctx *getSessionCtx) error {
@@ -249,7 +213,7 @@ func marshalData(ctx *getSessionCtx) error {
 func writeDataToFile(ctx *getSessionCtx) error {
 	if gsOutputFormat == "json" {
 		if ctx.Data != nil {
-			fmt.Println("GOT SESSIONS: \n %s \n", string(ctx.Data))
+			fmt.Println("\n", string(ctx.Data))
 		}
 		return nil
 	}

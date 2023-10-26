@@ -15,11 +15,17 @@ import (
 // redisClient holds the Redis client.
 var redisClient redis.UniversalClient
 
+// redisSecondClient holds the Redis client with backups.
+var redisSecondClient redis.UniversalClient
+
 // db holds the network-server's PostgreSQL connection pool.
 var nsDB *DBLogger
 
 // db holds the application-server's PostgreSQL connection pool.
 var asDB *DBLogger
+
+// holds the clickhouse handyrusty logs
+var hrDB *sqlx.DB
 
 // DBLogger is a DB wrapper which logs the executed sql queries and their
 // duration.
@@ -111,6 +117,11 @@ func logQuery(query string, duration time.Duration, args ...interface{}) {
 }
 
 // NetServer returns the network-server's PostgreSQL database object.
+func Clickhouse() *sqlx.DB {
+	return hrDB
+}
+
+// NetServer returns the network-server's PostgreSQL database object.
 func NetServer() *DBLogger {
 	return nsDB
 }
@@ -123,4 +134,9 @@ func AppServer() *DBLogger {
 // RedisClient returns the Redis client.
 func RedisClient() redis.UniversalClient {
 	return redisClient
+}
+
+// RedisSecondClient returns the Redis client.
+func RedisSecondClient() redis.UniversalClient {
+	return redisSecondClient
 }

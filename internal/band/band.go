@@ -3,7 +3,6 @@ package band
 import (
 	"github.com/pkg/errors"
 
-	"github.com/fancar/wrenches/internal/band"
 	"github.com/fancar/wrenches/internal/config"
 
 	"github.com/brocaar/lorawan"
