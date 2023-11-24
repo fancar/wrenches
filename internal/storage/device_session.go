@@ -320,6 +320,7 @@ func CSVfromDeviceSession(d *DeviceSession) *DeviceSessionCSV {
 		FNwkSIntKey: hex.EncodeToString(d.FNwkSIntKey[:]),
 		SNwkSIntKey: hex.EncodeToString(d.FNwkSIntKey[:]),
 		NwkSEncKey:  hex.EncodeToString(d.FNwkSIntKey[:]),
+		AESKey:      hex.EncodeToString(d.AppSKey[:]),
 
 		PingSlotNb:            d.PingSlotNb,
 		EnabledUplinkChannels: d.EnabledUplinkChannels,

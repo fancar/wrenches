@@ -87,7 +87,7 @@ func getSessions(cmd *cobra.Command, args []string) {
 		checkOutputFormatGS,
 		setupStorageGS,
 		printGetSessionsStartMessage,
-		getAppSessionKeysFromAppServer,
+		// getAppSessionKeysFromAppServer,
 		getDeviceSessionsfromRedis,
 		marshalData,
 		writeDataToFile,
@@ -171,7 +171,10 @@ func getDeviceSessionsfromRedis(ctx *getSessionCtx) error {
 	}
 
 	ctx.DeviceSessions = items
-	log.WithField("items_len", len(items)).Debug("Got sessions from Redis")
+
+	if len(items) > 0 && len(items) != len(ctx.Devices) {
+		log.Warnf("Got %d device_sessions while amount of devices you asked for is: %d", len(items), len(ctx.Devices))
+	}
 
 	return nil
 

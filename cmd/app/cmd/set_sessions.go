@@ -193,6 +193,7 @@ func prepareAndSaveDeviceSessions(ctx *setSessionCtx) error {
 				log.WithError(err).WithField("DevEUI", row.DevEUI).Error("Unable to decode hex session params hex-str required. Skipped")
 				continue
 			}
+			copy(s.AppSKey[:], AESKey[:])
 			s.AppSKeyEvelope = &storage.KeyEnvelope{
 				KekLabel: row.KEKLabel,
 				AesKey:   AESKey,
